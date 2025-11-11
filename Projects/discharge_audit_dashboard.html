@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discharge Summary Audit Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .cycle-toggle {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .toggle-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .toggle-btn.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        .card .value {
+            font-size: 2.5em;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .card .change {
+            font-size: 0.9em;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+
+        .positive {
+            background: rgba(46, 204, 113, 0.1);
+            color: #2ecc71;
+        }
+
+        .negative {
+            background: rgba(231, 76, 60, 0.1);
+            color: #e74c3c;
+        }
+
+        .neutral {
+            background: rgba(149, 165, 166, 0.1);
+            color: #95a5a6;
+        }
+
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .chart-card h3 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 1.2em;
+        }
+
+        .detailed-table {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .detailed-table::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .detailed-table h3 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 1.2em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover {
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .improvement {
+            color: #2ecc71;
+            font-weight: 600;
+        }
+
+        .decline {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+
+        .no-change {
+            color: #95a5a6;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .dashboard-container {
+                padding: 20px;
+            }
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="header">
+            <h1>Discharge Summary Audit Dashboard</h1>
+            <p>Quality Improvement Analysis - April 2025 vs June 2025</p>
+        </div>
+
+        <div class="cycle-toggle">
+            <button class="toggle-btn active" onclick="showCycle('comparison')">Comparison View</button>
+            <button class="toggle-btn" onclick="showCycle('cycle1')">Cycle 1 (April)</button>
+            <button class="toggle-btn" onclick="showCycle('cycle2')">Cycle 2 (June)</button>
+        </div>
+
+        <div id="comparison-view">
+            <div class="summary-cards">
+                <div class="card fade-in">
+                    <h3>Overall Completion Rate</h3>
+                    <div class="value">87.8%</div>
+                    <div class="change positive">+3.1% improvement</div>
+                </div>
+                <div class="card fade-in">
+                    <h3>Signed Off Rate</h3>
+                    <div class="value">95.0%</div>
+                    <div class="change positive">+2.5% improvement</div>
+                </div>
+                <div class="card fade-in">
+                    <h3>Critical Documentation</h3>
+                    <div class="value">92.3%</div>
+                    <div class="change positive">+4.2% improvement</div>
+                </div>
+                <div class="card fade-in">
+                    <h3>Records Audited</h3>
+                    <div class="value">100</div>
+                    <div class="change neutral">50 per cycle</div>
+                </div>
+            </div>
+
+            <div class="charts-container">
+                <div class="chart-card fade-in">
+                    <h3>Category-wise Completion Comparison</h3>
+                    <canvas id="comparisonChart"></canvas>
+                </div>
+                <div class="chart-card fade-in">
+                    <h3>Improvement Trends</h3>
+                    <canvas id="improvementChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div id="cycle1-view" style="display: none;">
+            <div class="summary-cards">
+                <div class="card">
+                    <h3>Total Records</h3>
+                    <div class="value">50</div>
+                    <div class="change neutral">April 2025</div>
+                </div>
+                <div class="card">
+                    <h3>Overall Completion</h3>
+                    <div class="value">84.7%</div>
+                    <div class="change neutral">Baseline</div>
+                </div>
+                <div class="card">
+                    <h3>Signed Off</h3>
+                    <div class="value">92.0%</div>
+                    <div class="change neutral">46/50 records</div>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Cycle 1 - Category Performance</h3>
+                <canvas id="cycle1Chart"></canvas>
+            </div>
+        </div>
+
+        <div id="cycle2-view" style="display: none;">
+            <div class="summary-cards">
+                <div class="card">
+                    <h3>Total Records</h3>
+                    <div class="value">50</div>
+                    <div class="change neutral">June 2025</div>
+                </div>
+                <div class="card">
+                    <h3>Overall Completion</h3>
+                    <div class="value">87.8%</div>
+                    <div class="change positive">+3.1% vs Cycle 1</div>
+                </div>
+                <div class="card">
+                    <h3>Signed Off</h3>
+                    <div class="value">94.0%</div>
+                    <div class="change positive">47/50 records</div>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Cycle 2 - Category Performance</h3>
+                <canvas id="cycle2Chart"></canvas>
+            </div>
+        </div>
+
+        <div class="detailed-table fade-in">
+            <h3>Detailed Category Analysis</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Cycle 1 (%)</th>
+                        <th>Cycle 2 (%)</th>
+                        <th>Change</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="detailedTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Data processing and chart creation
+        const auditData = {
+            cycle1: {
+                demographics: 100,
+                admissionDates: 86,
+                ipNo: 100,
+                department: 100,
+                payorName: 44,
+                wardBed: 100,
+                treatingClinicians: 94,
+                diagnosis: 100,
+                chiefComplaints: 100,
+                history: 100,
+                laboratory: 74,
+                physicalExam: 96,
+                radiology: 72,
+                surgicalProcedures: 78,
+                courseOfTreatment: 100,
+                dischargeData: 100,
+                signedOff: 92
+            },
+            cycle2: {
+                demographics: 98,
+                admissionDates: 84,
+                ipNo: 100,
+                department: 100,
+                payorName: 58,
+                wardBed: 96,
+                treatingClinicians: 96,
+                diagnosis: 100,
+                chiefComplaints: 100,
+                history: 100,
+                laboratory: 70,
+                physicalExam: 100,
+                radiology: 60,
+                surgicalProcedures: 78,
+                courseOfTreatment: 100,
+                dischargeData: 100,
+                signedOff: 94
+            }
+        };
+
+        const categoryLabels = [
+            'Demographics', 'Admission Dates', 'IP No', 'Department', 'Payor Name', 
+            'Ward/Bed', 'Treating Clinicians', 'Diagnosis', 'Chief Complaints', 
+            'History', 'Laboratory', 'Physical Exam', 'Radiology', 
+            'Surgical Procedures', 'Course of Treatment', 'Discharge Data', 'Signed Off'
+        ];
+
+        const categoryKeys = Object.keys(auditData.cycle1);
+
+        let currentView = 'comparison';
+        let charts = {};
+
+        function showCycle(view) {
+            currentView = view;
+            
+            // Update button states
+            document.querySelectorAll('.toggle-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Hide all views
+            document.getElementById('comparison-view').style.display = 'none';
+            document.getElementById('cycle1-view').style.display = 'none';
+            document.getElementById('cycle2-view').style.display = 'none';
+
+            // Show selected view
+            document.getElementById(view + '-view').style.display = 'block';
+
+            // Create charts based on view
+            setTimeout(() => {
+                createCharts();
+            }, 100);
+        }
+
+        function createCharts() {
+            // Clear existing charts
+            Object.values(charts).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+
+            if (currentView === 'comparison') {
+                createComparisonChart();
+                createImprovementChart();
+            } else if (currentView === 'cycle1') {
+                createCycle1Chart();
+            } else if (currentView === 'cycle2') {
+                createCycle2Chart();
+            }
+        }
+
+        function createComparisonChart() {
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+            
+            charts.comparison = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: categoryLabels,
+                    datasets: [{
+                        label: 'Cycle 1 (April)',
+                        data: categoryKeys.map(key => auditData.cycle1[key]),
+                        backgroundColor: 'rgba(102, 126, 234, 0.7)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 1
+                    }, {
+                        label: 'Cycle 2 (June)',
+                        data: categoryKeys.map(key => auditData.cycle2[key]),
+                        backgroundColor: 'rgba(118, 75, 162, 0.7)',
+                        borderColor: 'rgba(118, 75, 162, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 0
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createImprovementChart() {
+            const ctx = document.getElementById('improvementChart').getContext('2d');
+            
+            const improvements = categoryKeys.map(key => 
+                auditData.cycle2[key] - auditData.cycle1[key]
+            );
+
+            charts.improvement = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: categoryLabels,
+                    datasets: [{
+                        label: 'Improvement (%)',
+                        data: improvements,
+                        backgroundColor: improvements.map(val => 
+                            val > 0 ? 'rgba(46, 204, 113, 0.7)' : 
+                            val < 0 ? 'rgba(231, 76, 60, 0.7)' : 
+                            'rgba(149, 165, 166, 0.7)'
+                        ),
+                        borderColor: improvements.map(val => 
+                            val > 0 ? 'rgba(46, 204, 113, 1)' : 
+                            val < 0 ? 'rgba(231, 76, 60, 1)' : 
+                            'rgba(149, 165, 166, 1)'
+                        ),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 0
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createCycle1Chart() {
+            const ctx = document.getElementById('cycle1Chart').getContext('2d');
+            
+            charts.cycle1 = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: categoryLabels,
+                    datasets: [{
+                        label: 'Completion Rate (%)',
+                        data: categoryKeys.map(key => auditData.cycle1[key]),
+                        backgroundColor: 'rgba(102, 126, 234, 0.7)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 0
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createCycle2Chart() {
+            const ctx = document.getElementById('cycle2Chart').getContext('2d');
+            
+            charts.cycle2 = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: categoryLabels,
+                    datasets: [{
+                        label: 'Completion Rate (%)',
+                        data: categoryKeys.map(key => auditData.cycle2[key]),
+                        backgroundColor: 'rgba(118, 75, 162, 0.7)',
+                        borderColor: 'rgba(118, 75, 162, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 0
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function populateDetailedTable() {
+            const tableBody = document.getElementById('detailedTableBody');
+            tableBody.innerHTML = '';
+
+            categoryKeys.forEach((key, index) => {
+                const cycle1Value = auditData.cycle1[key];
+                const cycle2Value = auditData.cycle2[key];
+                const change = cycle2Value - cycle1Value;
+                const changeText = change > 0 ? `+${change}%` : `${change}%`;
+                const statusClass = change > 0 ? 'improvement' : change < 0 ? 'decline' : 'no-change';
+                const statusText = change > 0 ? 'Improved' : change < 0 ? 'Declined' : 'No Change';
+
+                const row = tableBody.insertRow();
+                row.innerHTML = `
+                    <td>${categoryLabels[index]}</td>
+                    <td>${cycle1Value}%</td>
+                    <td>${cycle2Value}%</td>
+                    <td class="${statusClass}">${changeText}</td>
+                    <td class="${statusClass}">${statusText}</td>
+                `;
+            });
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            createCharts();
+            populateDetailedTable();
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            Object.values(charts).forEach(chart => {
+                if (chart) chart.resize();
+            });
+        });
+    </script>
+</body>
+</html>
